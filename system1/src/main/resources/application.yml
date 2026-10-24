@@ -1,0 +1,32 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: system1
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak realm 的 issuer；Spring Security 会校验 JWT 中的 iss 必须与它一致
+          issuer-uri: ${SSO_ISSUER:http://localhost:8080/realms/sso-demo}
+          # 只接受签发给系统 1 的 Access Token（Keycloak 中通过 audience mapper 注入）
+          audiences: ${SSO_AUDIENCE:system1}
+
+app:
+  system-id: system1
+  system-name: 系统 1 · 订单中心
+  frontend-origin: ${SSO_FRONTEND_ORIGIN:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.springframework.security: INFO

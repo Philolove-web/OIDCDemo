@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="基于 Keycloak OIDC 的统一身份认证系统页面，展示当前登录角色与业务数据。">
+    <title>系统页面 · UniAuth SSO</title>
+    <link rel="stylesheet" href="/assets/app.css">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M16 7l6 2.5v4.6c0 3.9-2.5 6.6-6 8-3.5-1.4-6-4.1-6-8v-4.6L16 7z' fill='white'/%3E%3C/svg%3E">
+</head>
+<body data-role="guest">
+<div class="page">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/" aria-label="返回系统首页">
+                <span class="brand-mark" id="system-mark">S1</span>
+                <span class="brand-copy">
+                    <strong id="system-name">系统 1</strong>
+                    <small id="system-subtitle">订单中心</small>
+                </span>
+            </a>
+
+            <span class="sso-badge" id="sso-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                Keycloak 统一身份认证
+            </span>
+
+            <div class="topbar-actions">
+                <span class="role-pill" id="role-pill" hidden data-role="user">
+                    <span class="role-pill-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.8v5.1c0 4.4-2.9 7.5-7 9.1-4.1-1.6-7-4.7-7-9.1V5.8L12 3z"/><path d="M9.2 11.9l2 2 3.7-3.9"/></svg>
+                    </span>
+                    <span id="role-pill-text">普通用户</span>
+                </span>
+
+                <div class="user-chip" id="user-chip" hidden>
+                    <span class="avatar avatar-sm" id="nav-avatar">A</span>
+                    <span class="user-chip-name" id="nav-user-name">alice</span>
+                    <button class="icon-btn js-logout" type="button" title="退出登录" aria-label="退出登录">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M4 4h5v16H4z"/></svg>
+                    </button>
+                </div>
+
+                <button class="btn btn-primary btn-sm" id="top-login" type="button">统一登录</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="landing" id="landing">
+            <div class="landing-copy">
+                <h1 class="landing-title">
+                    <span class="title-line" id="landing-title">每一笔订单，</span>
+                    <span class="title-line landing-highlight" id="landing-highlight">都从可信身份开始。</span>
+                </h1>
+                <p class="landing-lead" id="landing-lead">系统 1 独立校验 Keycloak 签发的 Access Token，只处理属于你的订单。</p>
+                <div class="landing-actions">
+                    <button class="btn btn-primary btn-lg" id="login-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.8v5.1c0 4.4-2.9 7.5-7 9.1-4.1-1.6-7-4.7-7-9.1V5.8L12 3z"/><path d="M9.2 11.9l2 2 3.7-3.9"/></svg>
+                        使用 Keycloak 统一登录
+                    </button>
+                    <a class="btn btn-ghost btn-lg" id="portal-link" href="http://localhost:3000/">返回统一门户</a>
+                </div>
+                <p class="login-note">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+                    密码只提交给 Keycloak；本系统不保存密码、不创建会话
+                </p>
+                <ul class="protocol-facts">
+                    <li>授权码 + PKCE</li>
+                    <li>RS256 / JWKS 验签</li>
+                    <li>角色来自 Access Token</li>
+                </ul>
+            </div>
+
+            <aside class="access-preview" aria-label="登录后的身份预览">
+                <div class="preview-top">
+                    <span>身份校验</span>
+                    <span class="locked-label"><span class="lock-dot"></span>LOCKED</span>
+                </div>
+                <div class="preview-main">
+                    <div class="lock-emblem">
+                        <span class="lock-ring"></span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/><path d="M12 14v3"/></svg>
+                    </div>
+                    <p class="preview-title">登录后显示你的角色</p>
+                    <div class="preview-roles">
+                        <span class="preview-role user">普通用户</span>
+                        <span class="preview-role admin">管理员</span>
+                    </div>
+                </div>
+                <ul class="preview-permissions">
+                    <li><span class="permission-dot user"></span><span>普通用户</span><em>业务数据</em></li>
+                    <li><span class="permission-dot admin"></span><span>管理员</span><em>业务 + 管理接口</em></li>
+                </ul>
+                <div class="preview-foot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+                    角色由 realm_access.roles 决定，服务端再次校验
+                </div>
+            </aside>
+        </section>
+
+        <section class="dashboard" id="dashboard" hidden>
+            <div class="dashboard-head">
+                <div>
+                    <p class="welcome-line">认证成功 · Keycloak OIDC</p>
+                    <h1>欢迎回来，<span id="welcome-name">Alice</span></h1>
+                    <p class="welcome-sub">当前系统：<strong id="welcome-system">系统 1 · 订单中心</strong> <span class="meta-sep">/</span> 服务端已验签</p>
+                </div>
+                <div class="session-pill">
+                    <span class="session-dot"></span>
+                    <div>
+                        <strong>会话有效</strong>
+                        <small>Access Token <span id="countdown">05:00</span></small>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" id="refresh-btn" type="button">刷新</button>
+                </div>
+            </div>
+
+            <div class="inline-error" id="dashboard-error" hidden></div>
+
+            <section class="role-card" id="role-card" data-role="user">
+                <div class="role-main">
+                    <div class="role-emblem" aria-hidden="true">
+                        <svg id="role-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+                    </div>
+                    <div class="role-copy">
+                        <p class="role-label">当前登录角色</p>
+                        <h1 id="role-name">普通用户</h1>
+                        <p id="role-summary">拥有 user 角色，可访问业务数据；管理接口需要 admin 角色。</p>
+                    </div>
+                </div>
+                <div class="role-meta">
+                    <span class="role-code" id="role-code">USER</span>
+                    <div class="role-chips" id="role-chips"></div>
+                    <span class="role-verified">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        Keycloak 验证通过
+                    </span>
+                </div>
+            </section>
+
+            <div class="dashboard-grid">
+                <section class="panel profile-panel">
+                    <div class="panel-head">
+                        <h2>登录身份</h2>
+                        <span class="panel-note">来自已验签 Token</span>
+                    </div>
+                    <div class="profile-head">
+                        <span class="avatar" id="profile-avatar">A</span>
+                        <div>
+                            <h3 id="profile-name">Alice Wang</h3>
+                            <p id="profile-email">alice@example.com</p>
+                        </div>
+                        <span class="verified-badge">已验证</span>
+                    </div>
+                    <dl class="meta-grid">
+                        <div><dt>用户名</dt><dd id="profile-username">alice</dd></div>
+                        <div><dt>部门</dt><dd id="profile-dept">研发中心</dd></div>
+                        <div><dt>工号</dt><dd id="profile-emp">E-1001</dd></div>
+                        <div><dt>Subject</dt><dd id="profile-subject" class="mono truncate">—</dd></div>
+                    </dl>
+                    <div class="profile-actions">
+                        <button class="btn btn-ghost btn-sm" id="userinfo-btn" type="button">调用 UserInfo</button>
+                        <button class="btn btn-ghost btn-sm js-logout" type="button">退出登录</button>
+                    </div>
+                </section>
+
+                <section class="panel permission-panel">
+                    <div class="panel-head">
+                        <h2>权限视图</h2>
+                        <span class="panel-note">由 realm roles 决定</span>
+                    </div>
+                    <ul class="permission-list">
+                        <li id="perm-business" class="is-granted">
+                            <span class="permission-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            </span>
+                            <div><strong>业务数据</strong><small id="business-scope">订单接口</small></div>
+                            <span class="permission-state">已授权</span>
+                        </li>
+                        <li id="perm-admin" class="is-locked">
+                            <span class="permission-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+                            </span>
+                            <div><strong>管理接口</strong><small>仅 admin 角色可访问</small></div>
+                            <span class="permission-state" id="perm-admin-state">未授权</span>
+                        </li>
+                    </ul>
+                    <p class="permission-note" id="permission-note">普通用户可访问业务数据；管理接口会返回 403。</p>
+                </section>
+            </div>
+
+            <section class="data-section">
+                <div class="section-head">
+                    <div>
+                        <h2 id="data-title">订单概览</h2>
+                        <p id="data-sub">由系统 1 后端返回，已通过 JWKS 验签与 audience 校验。</p>
+                    </div>
+                    <span class="signed-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        RS256 · 服务端验签
+                    </span>
+                </div>
+                <div class="stat-strip" id="stats"></div>
+                <div class="table-panel">
+                    <div class="tablehead">
+                        <h3 id="table-title">最近订单</h3>
+                        <span id="table-count"></span>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="data-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="admin-section">
+                <div class="section-head">
+                    <div>
+                        <h2>管理接口</h2>
+                        <p id="admin-sub">当前角色决定是否能够访问系统管理数据。</p>
+                    </div>
+                    <span class="admin-badge" id="admin-badge">需要 admin</span>
+                </div>
+                <section class="admin-panel is-locked" id="admin-card">
+                    <div class="admin-head">
+                        <span class="admin-icon" id="admin-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+                        </span>
+                        <div class="admin-copy">
+                            <h3 id="admin-title">当前角色无法访问</h3>
+                            <p id="admin-desc">你的角色是 user；该接口要求 admin。可以点击按钮验证服务端返回 403。</p>
+                        </div>
+                        <button class="btn btn-ghost" id="admin-btn" type="button">尝试访问（预期 403）</button>
+                    </div>
+                    <div class="admin-result" id="admin-result">
+                        <span class="admin-empty">管理员数据将在验证通过后显示。</span>
+                    </div>
+                </section>
+            </section>
+
+            <details class="token-details">
+                <summary>
+                    <span>查看 Token 声明</span>
+                    <small>Access Token / ID Token 的已解码内容</small>
+                </summary>
+                <div class="token-grid">
+                    <div>
+                        <h3>Access Token</h3>
+                        <pre id="access-claims"></pre>
+                    </div>
+                    <div>
+                        <h3>ID Token</h3>
+                        <pre id="id-claims"></pre>
+                    </div>
+                </div>
+            </details>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <span><strong id="footer-system">系统 1 · 订单中心</strong> <span class="footer-sep">/</span> Spring Boot 资源服务器</span>
+        <span class="footer-meta">Issuer <code id="footer-issuer">http://localhost:8080/realms/sso-demo</code></span>
+        <a href="http://localhost:3000/" id="footer-portal">返回统一门户</a>
+    </footer>
+</div>
+
+<div class="loading-overlay" id="loading" hidden>
+    <span class="spinner"></span>
+    <p id="loading-text">正在完成统一登录…</p>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-dot"></span>
+    <span id="toast-text"></span>
+</div>
+
+<script src="/config.js"></script>
+<script type="module" src="/assets/app.js"></script>
+</body>
+</html>

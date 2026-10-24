@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="基于 Keycloak OIDC 的统一身份认证演示：授权码 + PKCE、ID Token、单点登录与资源服务器 JWT 校验。">
+    <title>UniAuth · Keycloak OIDC 统一身份认证演示</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M16 7l6 2.5v4.6c0 3.9-2.5 6.6-6 8-3.5-1.4-6-4.1-6-8v-4.6L16 7z' fill='white'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="./" aria-label="UniAuth 首页">
+            <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l7 2.8v5.1c0 4.4-2.9 7.5-7 9.1-4.1-1.6-7-4.7-7-9.1V5.8L12 3z"/>
+                    <path d="M9.2 11.9l2 2 3.7-3.9"/>
+                </svg>
+            </span>
+            <span class="brand-text">
+                <strong>UniAuth</strong>
+                <span>Keycloak OIDC · SSO Demo</span>
+            </span>
+        </a>
+        <div class="topbar-right">
+            <span class="env-pill">
+                <span class="pulse-dot"></span>
+                Keycloak 26 <span class="sep">/</span> realm <code>sso-demo</code>
+            </span>
+            <div id="auth-chip" class="auth-chip" hidden>
+                <span class="auth-avatar" id="chip-avatar">A</span>
+                <span id="chip-name">Alice</span>
+                <button id="chip-logout" class="icon-btn" title="退出登录" aria-label="退出登录">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M4 4h5v16H4z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- ============ 未登录：统一登录入口 ============ -->
+        <section id="landing" class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="eyebrow-line"></span> OPENID CONNECT · AUTHORIZATION CODE + PKCE</p>
+                <h1>一次登录，<br><span class="grad">通行两个业务系统</span></h1>
+                <p class="lede">
+                    Keycloak 作为统一认证中心，系统 1 与系统 2 作为彼此独立的 Spring Boot 资源服务。
+                    登录页不接触用户密码，只负责发起标准 OIDC 授权码流程，并用 Access Token 访问各系统。
+                </p>
+                <div class="hero-actions">
+                    <button id="btn-login" class="btn btn-primary btn-lg">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.8v5.1c0 4.4-2.9 7.5-7 9.1-4.1-1.6-7-4.7-7-9.1V5.8L12 3z"/><path d="M9.2 11.9l2 2 3.7-3.9"/></svg>
+                        使用 Keycloak 统一登录
+                    </button>
+                    <a class="btn btn-ghost btn-lg" href="#protocol">查看授权码流程</a>
+                </div>
+                <div class="account-hint">
+                    <span class="hint-label">演示账号</span>
+                    <span class="account"><code>alice</code> / <code>alice123</code><em>普通用户</em></span>
+                    <span class="account"><code>bob</code> / <code>bob123</code><em>管理员</em></span>
+                </div>
+            </div>
+
+            <aside class="hero-panel">
+                <header class="panel-header">
+                    <span>OIDC 协议时序</span>
+                    <span class="live"><i></i> LIVE FLOW</span>
+                </header>
+                <ol class="mini-flow">
+                    <li>
+                        <span class="num">1</span>
+                        <div>
+                            <strong>浏览器 <span class="arrow">→</span> Keycloak</strong>
+                            <p>GET /auth · response_type=code · PKCE</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="num">2</span>
+                        <div>
+                            <strong>Keycloak <span class="arrow">→</span> 浏览器</strong>
+                            <p>302 redirect_uri?code=…&amp;state=…</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="num">3</span>
+                        <div>
+                            <strong>浏览器 <span class="arrow">→</span> Keycloak</strong>
+                            <p>POST /token · code + code_verifier</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="num">4</span>
+                        <div>
+                            <strong>浏览器 <span class="arrow">→</span> 系统 1 / 2</strong>
+                            <p>Authorization: Bearer &lt;access_token&gt;</p>
+                        </div>
+                    </li>
+                </ol>
+                <footer class="panel-footer">
+                    <span class="dot ok"></span>
+                    两个系统只信任 Keycloak 的签名
+                    <span class="panel-tag">RS256 · JWKS</span>
+                </footer>
+            </aside>
+        </section>
+
+        <!-- ============ 已登录：统一认证结果 ============ -->
+        <section id="dashboard" class="dashboard" hidden>
+            <div class="success-banner">
+                <div class="success-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <div class="success-copy">
+                    <p class="eyebrow light">AUTHENTICATION SUCCESSFUL</p>
+                    <h2>登录成功</h2>
+                    <p>Keycloak 已完成身份认证，授权码已通过后端通道换取 ID Token 与 Access Token。</p>
+                    <div class="success-role" id="success-role" data-role="user">
+                        <span>当前角色</span>
+                        <strong id="success-role-name">普通用户</strong>
+                    </div>
+                </div>
+                <div class="success-actions">
+                    <button id="btn-refresh" class="btn btn-on-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+                        刷新令牌
+                    </button>
+                    <button id="btn-userinfo" class="btn btn-on-dark">调用 UserInfo</button>
+                    <button id="btn-logout" class="btn btn-outline-light">
+                        退出登录
+                    </button>
+                </div>
+                <div class="success-glow" aria-hidden="true"></div>
+            </div>
+
+            <div class="identity-grid">
+                <article class="card identity-card">
+                    <div class="identity-head">
+                        <div class="avatar" id="avatar">A</div>
+                        <div class="identity-name">
+                            <h3 id="user-name">—</h3>
+                            <p>@<span id="user-username">—</span></p>
+                        </div>
+                        <span class="badge badge-success"><i class="badge-dot"></i>已认证</span>
+                    </div>
+                    <dl class="kv">
+                        <div><dt>邮箱</dt><dd id="user-email">—</dd></div>
+                        <div><dt>部门</dt><dd id="user-department">—</dd></div>
+                        <div><dt>工号</dt><dd id="user-employee">—</dd></div>
+                        <div><dt>Realm 角色</dt><dd id="user-roles" class="chips"></dd></div>
+                    </dl>
+                </article>
+
+                <article class="card session-card">
+                    <div class="session-head">
+                        <h3>会话与令牌</h3>
+                        <span class="badge badge-muted" id="token-source">OIDC</span>
+                    </div>
+                    <div class="countdown">
+                        <span id="session-time">--:--</span>
+                        <small>Access Token 剩余有效期</small>
+                    </div>
+                    <dl class="kv compact">
+                        <div><dt>Issuer</dt><dd id="user-issuer" class="mono">—</dd></div>
+                        <div><dt>Audience</dt><dd id="user-audience" class="mono">—</dd></div>
+                        <div><dt>Subject</dt><dd id="user-subject" class="mono truncate">—</dd></div>
+                        <div><dt>刷新令牌</dt><dd><span id="refresh-state" class="badge badge-success">可用</span></dd></div>
+                    </dl>
+                </article>
+            </div>
+
+            <section class="systems-section">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow"><span class="eyebrow-line"></span> SINGLE SIGN-ON</p>
+                        <h2>已登录，直接访问业务系统</h2>
+                        <p class="section-sub">同一枚 Access Token 同时被两个独立后端接受 · 无需再次输入密码</p>
+                    </div>
+                    <button id="btn-sso-tab" class="btn btn-ghost">
+                        新标签页验证 SSO
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M20 14v6H4V4h6"/></svg>
+                    </button>
+                </div>
+
+                <div class="system-grid">
+                    <article class="system-card accent-indigo" data-system-id="system1">
+                        <header class="system-head">
+                            <div class="system-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>
+                            </div>
+                            <div class="system-title">
+                                <h3>系统 1 · 订单中心</h3>
+                                <p>Spring Boot · <span class="mono">:8081</span> · aud <code>system1</code></p>
+                            </div>
+                            <span class="status-pill" data-role="status"><i></i>检测中</span>
+                        </header>
+                        <p class="system-desc">独立资源服务器。校验 RS256 签名、issuer 与 aud 后，才返回订单数据。</p>
+                        <div class="system-actions">
+                            <a class="btn btn-primary btn-sm" data-open-ui="system1" href="http://localhost:8081/" target="_blank" rel="noreferrer">打开系统页面 ↗</a>
+                            <button class="btn btn-ghost btn-sm" data-action="dashboard">刷新业务 API</button>
+                            <button class="btn btn-ghost btn-sm" data-action="admin">管理员接口</button>
+                        </div>
+                        <div class="system-result" data-role="result">
+                            <div class="result-empty">点击「刷新业务 API」，携带 Bearer Token 调用 <code>/api/system1/dashboard</code></div>
+                        </div>
+                    </article>
+
+                    <article class="system-card accent-teal" data-system-id="system2">
+                        <header class="system-head">
+                            <div class="system-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.2 9.2 0 01-3.4-.7L3 21l1.8-5.2a8.4 8.4 0 1116.2-4.3z"/><path d="M8 11h8M8 14h5"/></svg>
+                            </div>
+                            <div class="system-title">
+                                <h3>系统 2 · 消息中心</h3>
+                                <p>Spring Boot · <span class="mono">:8082</span> · aud <code>system2</code></p>
+                            </div>
+                            <span class="status-pill" data-role="status"><i></i>检测中</span>
+                        </header>
+                        <p class="system-desc">与系统 1 零共享代码、零共享 Session，仅共享对 Keycloak 公钥的信任。</p>
+                        <div class="system-actions">
+                            <a class="btn btn-primary btn-sm" data-open-ui="system2" href="http://localhost:8082/" target="_blank" rel="noreferrer">打开系统页面 ↗</a>
+                            <button class="btn btn-ghost btn-sm" data-action="dashboard">刷新业务 API</button>
+                            <button class="btn btn-ghost btn-sm" data-action="admin">管理员接口</button>
+                        </div>
+                        <div class="system-result" data-role="result">
+                            <div class="result-empty">点击「刷新业务 API」，携带 Bearer Token 调用 <code>/api/system2/dashboard</code></div>
+                        </div>
+                    </article>
+                </div>
+                <p class="sso-note">
+                    <span class="sso-note-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                    </span>
+                    点「新标签页验证 SSO」会在全新标签页打开登录入口：由于 Keycloak 会话 Cookie 仍然有效，
+                    页面会自动完成认证并直接回到「登录成功」，不会再次要求输入密码。
+                </p>
+            </section>
+        </section>
+
+        <!-- ============ 协议检查器 ============ -->
+        <section id="protocol" class="protocol-section">
+            <div class="section-head protocol-head">
+                <div>
+                    <p class="eyebrow"><span class="eyebrow-line"></span> PROTOCOL INSPECTOR</p>
+                    <h2>OIDC 授权码流程 · 实际发生的请求</h2>
+                    <p class="section-sub">这里展示的是浏览器真实发出 / 收到的协议数据，不是静态示意图。</p>
+                </div>
+                <div class="protocol-meta">
+                    <span id="protocol-status" class="badge badge-muted">等待登录</span>
+                    <button id="btn-clear-log" class="link-btn">清空日志</button>
+                </div>
+            </div>
+
+            <ol class="stepper" id="stepper">
+                <li data-step="1" data-state="pending"><span class="step-index">1</span><div><strong>发起授权请求</strong><small>response_type=code + PKCE</small></div></li>
+                <li data-step="2" data-state="pending"><span class="step-index">2</span><div><strong>Keycloak 认证</strong><small>用户名 / 密码只提交给 Keycloak</small></div></li>
+                <li data-step="3" data-state="pending"><span class="step-index">3</span><div><strong>回调携带 code</strong><small>校验 state，防止 CSRF</small></div></li>
+                <li data-step="4" data-state="pending"><span class="step-index">4</span><div><strong>换取令牌</strong><small>code + code_verifier</small></div></li>
+                <li data-step="5" data-state="pending"><span class="step-index">5</span><div><strong>校验 ID Token</strong><small>iss · aud · exp · nonce</small></div></li>
+                <li data-step="6" data-state="pending"><span class="step-index">6</span><div><strong>访问资源</strong><small>UserInfo + 两个系统 API</small></div></li>
+            </ol>
+
+            <div class="protocol-grid">
+                <div class="card trace-card">
+                    <header class="card-head">
+                        <div><h3>请求时间线</h3><p>按发生顺序记录，可在浏览器 DevTools 中对照</p></div>
+                        <span class="trace-count" id="trace-count">0 条</span>
+                    </header>
+                    <ol id="trace" class="trace">
+                        <li class="trace-empty">
+                            <span class="trace-empty-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+                            </span>
+                            登录后，这里会记录每一次 OIDC / API 请求
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="card artifact-card">
+                    <div class="tabs" role="tablist">
+                        <button class="tab is-active" data-tab="id-token" role="tab">ID Token</button>
+                        <button class="tab" data-tab="access-token" role="tab">Access Token</button>
+                        <button class="tab" data-tab="userinfo" role="tab">UserInfo</button>
+                        <button class="tab" data-tab="auth-request" role="tab">授权请求</button>
+                    </div>
+                    <div id="artifact-body" class="artifact-body">
+                        <div class="artifact-placeholder">
+                            <div class="placeholder-glyph">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg>
+                            </div>
+                            <p>完成登录后，查看 ID Token、Access Token 的完整 JWT 内容。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ 原理说明 ============ -->
+        <section class="explainer">
+            <div class="explainer-head">
+                <p class="eyebrow"><span class="eyebrow-line"></span> WHY IT WORKS</p>
+                <h2>单点登录背后的三个关键动作</h2>
+            </div>
+            <div class="explainer-grid">
+                <article class="explainer-card">
+                    <span class="explainer-num">01</span>
+                    <h3>授权码 + PKCE</h3>
+                    <p>浏览器只拿到一次性授权码，并用 <code>code_verifier</code> 证明自己是发起方；令牌从不经过前端重定向 URL。</p>
+                </article>
+                <article class="explainer-card">
+                    <span class="explainer-num">02</span>
+                    <h3>ID Token 证明“你是谁”</h3>
+                    <p>Keycloak 签名的 JWT 包含 <code>sub</code>、<code>iss</code>、<code>aud</code>、<code>nonce</code>、<code>exp</code>，登录门户逐项校验。</p>
+                </article>
+                <article class="explainer-card">
+                    <span class="explainer-num">03</span>
+                    <h3>Access Token 证明“你能访问什么”</h3>
+                    <p>系统 1 / 2 通过 JWKS 公钥本地验签，并检查 <code>aud</code> 与角色；全程无需回调认证中心。</p>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div>
+            <span class="footer-brand">UniAuth</span>
+            <span>Keycloak OIDC · Spring Boot 资源服务 · 纯前端 RP</span>
+        </div>
+        <div class="footer-links">
+            <a href="http://localhost:8080/admin/master/console/" target="_blank" rel="noreferrer">Keycloak 控制台 ↗</a>
+            <a href="http://localhost:8080/realms/sso-demo/.well-known/openid-configuration" target="_blank" rel="noreferrer">Discovery 文档 ↗</a>
+        </div>
+    </footer>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-icon" aria-hidden="true"></span>
+    <span id="toast-message"></span>
+</div>
+
+<script src="config.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.8
+    container_name: sso-keycloak
+    # start-dev：开发模式（内置 H2 数据库，无需额外配置）
+    # --import-realm：启动时导入 ./keycloak/realm-export.json
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8080
+    environment:
+      # Keycloak 26.x 首次启动时创建的管理员账号（仅用于管理控制台）
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # 固定 issuer 为 http://localhost:8080，浏览器和后端都使用同一地址
+      KC_HOSTNAME: http://localhost:8080
+      KC_HTTP_ENABLED: "true"
+      KC_LOG_LEVEL: INFO
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    restart: unless-stopped

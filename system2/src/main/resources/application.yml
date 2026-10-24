@@ -1,0 +1,30 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: system2
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SSO_ISSUER:http://localhost:8080/realms/sso-demo}
+          audiences: ${SSO_AUDIENCE:system2}
+
+app:
+  system-id: system2
+  system-name: 系统 2 · 消息中心
+  frontend-origin: ${SSO_FRONTEND_ORIGIN:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.springframework.security: INFO
